@@ -12,14 +12,27 @@ router.get('/', (req, res) => {
   }
 });
 
-router.get('/:id', (req, res) => {
+router.get('/monthly/stats', (req, res) => {
   try {
-    const report = reportService.getReportById(req.params.id);
-    if (!report) {
-      return res.status(404).json({ success: false, message: '报告不存在' });
-    }
-    res.json({ success: true, data: report });
+    const { year, month } = req.query;
+    const stats = monthlyReportService.generateMonthlyStats(
+      parseInt(year), parseInt(month)
+    );
+    res.json({ success: true, data: stats });
   } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+router.post('/monthly', async (req, res) => {
+  try {
+    const { year, month, operator_id, operator_name } = req.body;
+    const result = monthlyReportService.generateMonthlyReport(
+      year, month, operator_id, operator_name
+    );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -36,26 +49,13 @@ router.post('/exit/:resignationId', async (req, res) => {
   }
 });
 
-router.post('/monthly', async (req, res) => {
+router.get('/:id', (req, res) => {
   try {
-    const { year, month, operator_id, operator_name } = req.body;
-    const result = await monthlyReportService.generateMonthlyReport(
-      year, month, operator_id, operator_name
-    );
-    res.json({ success: true, data: result });
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({ success: false, message: error.message });
-  }
-});
-
-router.get('/monthly/stats', (req, res) => {
-  try {
-    const { year, month } = req.query;
-    const stats = monthlyReportService.generateMonthlyStats(
-      parseInt(year), parseInt(month)
-    );
-    res.json({ success: true, data: stats });
+    const report = reportService.getReportById(req.params.id);
+    if (!report) {
+      return res.status(404).json({ success: false, message: '报告不存在' });
+    }
+    res.json({ success: true, data: report });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }

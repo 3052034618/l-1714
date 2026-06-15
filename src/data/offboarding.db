@@ -172,6 +172,21 @@
       "id": "304beb71-9f76-47da-92d5-d0911aec57e1",
       "created_at": "2026-06-15 22:57:58",
       "updated_at": "2026-06-15 22:57:58"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "department_id": "26737c02-f3a4-4dff-a2ee-1da79c98d0c7",
+      "position": "高级工程师",
+      "resignation_date": "2026-06-15",
+      "last_working_date": "2026-07-15",
+      "reason": "???????????",
+      "reason_category": "??????",
+      "status": "approved",
+      "approver_id": "d76de202-855e-4128-b13d-36f1748d64dd",
+      "approved_at": "2026-06-16 07:10:09",
+      "id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "created_at": "2026-06-15 23:09:59",
+      "updated_at": "2026-06-15 23:10:09"
     }
   ],
   "interview_question_library": [
@@ -316,6 +331,17 @@
       "updated_at": "2026-06-15 22:57:58",
       "employee_accepted": 0,
       "reject_reason": "个人原因，暂不参加面谈"
+    },
+    {
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "interviewer_id": "8bc097c7-26e1-457b-ada3-9e392059516a",
+      "interviewer_name": "孙八",
+      "scheduled_at": "2026-06-19 07:10:09",
+      "status": "scheduled",
+      "id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
     }
   ],
   "interview_question_items": [
@@ -461,6 +487,76 @@
       "id": "21f69132-624e-408d-b6db-9f2fc741ae88",
       "created_at": "2026-06-15 22:57:58",
       "updated_at": "2026-06-15 22:57:58"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "11072732-27b8-4d70-bef6-03ffc4555c72",
+      "question_text": "办公环境和工作氛围如何？",
+      "question_category": "工作环境",
+      "sort_order": 1,
+      "id": "55410b9d-bbc8-4c1c-a709-cb6f3b32fb36",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "2d5bdc75-3912-42c1-83ae-f27bcbf617f4",
+      "question_text": "你对直属上级的管理方式有什么建议？",
+      "question_category": "管理问题",
+      "sort_order": 2,
+      "id": "99bb7eb8-018e-40ea-b079-65d468933c03",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "76252a31-5159-44f3-8a43-f3f8a8637cad",
+      "question_text": "公司层面的管理有哪些需要改进的地方？",
+      "question_category": "管理问题",
+      "sort_order": 3,
+      "id": "0624b80b-bba2-4af2-805e-9a999d26815d",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "1db30b4a-e6e7-4392-b878-78efd1759df3",
+      "question_text": "你还有其他想反馈的问题吗？",
+      "question_category": "其他",
+      "sort_order": 4,
+      "id": "bfc6a711-a257-4cc5-9990-e8a0b4f3f84c",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "077eac79-7d9b-4592-b8cb-7b698b9d8525",
+      "question_text": "团队沟通和协作效率如何？",
+      "question_category": "团队协作",
+      "sort_order": 5,
+      "id": "3f239767-79de-43eb-994e-24bc41c41dc4",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "34afd7e5-c1e8-4497-a299-f7c540b54cb0",
+      "question_text": "你对当前的薪酬福利满意吗？有哪些改进建议？",
+      "question_category": "薪酬福利",
+      "sort_order": 6,
+      "id": "8c85c6e0-847d-4693-a3ee-3c77280bc582",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "interview_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "question_library_id": "32fe4b1d-723a-4353-977a-a03293ca01bc",
+      "question_text": "你认为公司在职业发展方面有哪些可以改进的地方？",
+      "question_category": "职业发展",
+      "sort_order": 7,
+      "id": "25a432cc-2eec-4c95-ac4d-f13e91ae1b26",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
     }
   ],
   "improvement_tickets": [
@@ -726,6 +822,111 @@
       "updated_at": "2026-06-15 22:57:58",
       "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
       "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "代码仓库",
+      "name": "核心业务系统代码库",
+      "description": "包含主要业务逻辑的后端代码",
+      "location": "git@github.com:company/core-system.git",
+      "importance": "high",
+      "status": "pending_transfer",
+      "id": "323c88cd-d14f-46ff-8f8f-9ce4b65d0224",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "技术文档",
+      "name": "系统架构设计文档",
+      "description": "整体架构设计和技术选型说明",
+      "location": "内部wiki/架构组",
+      "importance": "high",
+      "status": "pending_transfer",
+      "id": "c19add62-860b-40a7-9455-fe800b96f2ff",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "技术文档",
+      "name": "API接口文档",
+      "description": "对外和内部API详细说明",
+      "location": "内部wiki/API文档",
+      "importance": "medium",
+      "status": "pending_transfer",
+      "id": "1d7d90dd-f335-4847-8b4d-5cd2fe0051b8",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "测试用例",
+      "name": "自动化测试脚本",
+      "description": "单元测试和集成测试代码",
+      "location": "tests/automation",
+      "importance": "medium",
+      "status": "pending_transfer",
+      "id": "24a2ebd5-ceb8-4844-a9b8-a2a0882008bd",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "项目文档",
+      "name": "在研项目进度文档",
+      "description": "当前负责项目的进度和风险",
+      "location": "内部wiki/项目管理",
+      "importance": "high",
+      "status": "pending_transfer",
+      "id": "4dc32ee8-64b7-4dbc-b38f-c598e8c673bd",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "会议纪要",
+      "name": "历史会议记录",
+      "description": "参与的重要会议纪要归档",
+      "location": "共享盘/会议纪要",
+      "importance": "low",
+      "status": "pending_transfer",
+      "id": "371fedfb-d0ea-4e45-ba3b-bb8eed2aad07",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
+    },
+    {
+      "employee_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "asset_type": "培训材料",
+      "name": "新员工入职培训资料",
+      "description": "岗位相关培训材料",
+      "location": "内部wiki/培训中心",
+      "importance": "medium",
+      "status": "pending_transfer",
+      "id": "7aa96d5f-a28f-4beb-a6a6-2fa901ff3fcc",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09",
+      "transfer_to_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "transfer_to_name": "吴十"
     }
   ],
   "knowledge_transfer_tasks": [
@@ -882,6 +1083,83 @@
       "id": "c8f0beae-8f24-4506-8128-9d9f055df80a",
       "created_at": "2026-06-15 22:57:58",
       "updated_at": "2026-06-15 22:57:58"
+    },
+    {
+      "knowledge_asset_id": "323c88cd-d14f-46ff-8f8f-9ce4b65d0224",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "7d0985f6-9217-47a8-9a2e-c6cf5e75df15",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "knowledge_asset_id": "c19add62-860b-40a7-9455-fe800b96f2ff",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "922d5fc3-615a-42f9-a902-fe330bc79fa8",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "knowledge_asset_id": "1d7d90dd-f335-4847-8b4d-5cd2fe0051b8",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "c4b34806-73c9-45cc-b824-c695e4fd280f",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "knowledge_asset_id": "24a2ebd5-ceb8-4844-a9b8-a2a0882008bd",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "efc69636-f346-4663-94ee-59de66b790e5",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "knowledge_asset_id": "4dc32ee8-64b7-4dbc-b38f-c598e8c673bd",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "403664e6-46e2-4c16-aa69-e7d781a845bb",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "knowledge_asset_id": "371fedfb-d0ea-4e45-ba3b-bb8eed2aad07",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "44de2a21-d740-4de8-ad02-1bba865003cd",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "knowledge_asset_id": "7aa96d5f-a28f-4beb-a6a6-2fa901ff3fcc",
+      "resignation_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "assignee_id": "9f1d2d56-acf5-4c80-8f79-491aab5261ca",
+      "assignee_name": "吴十",
+      "status": "pending",
+      "deadline": "2026-06-30 07:10:09",
+      "id": "0d0d937c-7e7e-4c40-9676-c3430913789c",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
     }
   ],
   "reminders": [
@@ -1133,6 +1411,58 @@
       "id": "b9bd91cd-ea5c-4246-98e7-12be3f4f03c6",
       "created_at": "2026-06-15 22:58:37",
       "updated_at": "2026-06-15 22:58:37"
+    },
+    {
+      "operation_type": "create",
+      "module": "resignation",
+      "related_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "operator_id": "bda7e2dc-057d-41f2-92a9-e86efbefc702",
+      "operator_name": "??",
+      "department_id": "26737c02-f3a4-4dff-a2ee-1da79c98d0c7",
+      "detail": "提交离职申请，离职日期：2026-07-15",
+      "ip_address": null,
+      "id": "3d401b96-eb6f-4891-8fea-071794fa2d3a",
+      "created_at": "2026-06-15 23:09:59",
+      "updated_at": "2026-06-15 23:09:59"
+    },
+    {
+      "operation_type": "create",
+      "module": "interview",
+      "related_id": "0ea2079c-5730-4372-80d4-afe20d439f7b",
+      "operator_id": "system",
+      "operator_name": "系统自动",
+      "department_id": "26737c02-f3a4-4dff-a2ee-1da79c98d0c7",
+      "detail": "自动安排离职面谈，计划时间：2026-06-19 07:10:09",
+      "ip_address": null,
+      "id": "047e148f-52e7-4399-9b8f-a4d2cc77a1f5",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "operation_type": "create",
+      "module": "knowledge_asset",
+      "related_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "operator_id": "system",
+      "operator_name": "系统自动",
+      "department_id": "26737c02-f3a4-4dff-a2ee-1da79c98d0c7",
+      "detail": "自动扫描知识资产，共发现 7 项待转移资产",
+      "ip_address": null,
+      "id": "993c08bf-dd26-4f10-8862-b43c4b7eae7d",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
+    },
+    {
+      "operation_type": "approve",
+      "module": "resignation",
+      "related_id": "f007b323-e8f3-4050-9cab-a16212a9ba7a",
+      "operator_id": "d76de202-855e-4128-b13d-36f1748d64dd",
+      "operator_name": "??",
+      "department_id": "26737c02-f3a4-4dff-a2ee-1da79c98d0c7",
+      "detail": "审批通过离职申请，已自动安排面谈并扫描知识资产",
+      "ip_address": null,
+      "id": "9b362a31-cdf1-4bed-ba9c-f9a9ffe68563",
+      "created_at": "2026-06-15 23:10:09",
+      "updated_at": "2026-06-15 23:10:09"
     }
   ],
   "resignation_reason_categories": [

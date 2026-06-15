@@ -189,7 +189,56 @@ function completeResignation(id, operatorId, operatorName) {
     detail: '完成离职流程'
   });
 
-  return enrichResignation(db.findById('resignation_applications', id));
+  const reportService = require('./report.service');
+  const reminderService = require('./reminder.service');
+
+  const report = reportService.generateExitReport(id, operatorId, operatorName);
+
+  const department = application.department_id 
+    ? db.findById('departments', application.department_id)
+    : null;
+
+  const hrDept = db.findOne('departments', d => d.name === '人力资源部');
+  const hrEmployees = hrDept
+    ? db.filter('employees', e => e.department_id === hrDept.id && e.status === 'active')
+    : [];
+
+  const deptManager = department && department.manager_id
+    ? db.findById('employees', department.manager_id)
+    : null;
+
+  const reportSummary = `【离职报告已生成】
+员工：${report.resignation.employee_name}
+部门：${report.resignation.department_name}
+离职原因：${report.resignation.reason || report.resignation.reason_category || '未填写'}
+知识转移完成率：${report.knowledge_transfer.completion_rate}%
+改进工单：${report.tickets.total} 个，已完成 ${report.tickets.stats.completed || 0} 个`;
+
+  hrEmployees.forEach(hr => {
+    reminderService.createReminder({
+      relatedId: report.report_id,
+      relatedType: 'report',
+      recipientId: hr.id,
+      recipientEmail: hr.email,
+      reminderType: 'exit_report_hr',
+      content: reportSummary
+    });
+  });
+
+  if (deptManager) {
+    reminderService.createReminder({
+      relatedId: report.report_id,
+      relatedType: 'report',
+      recipientId: deptManager.id,
+      recipientEmail: deptManager.email,
+      reminderType: 'exit_report_manager',
+      content: reportSummary
+    });
+  }
+
+  const result = enrichResignation(db.findById('resignation_applications', id));
+  result.exit_report = report;
+  return result;
 }
 
 module.exports = {

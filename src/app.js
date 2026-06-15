@@ -11,6 +11,7 @@ const knowledgeRoutes = require('./routes/knowledge.routes');
 const reportRoutes = require('./routes/report.routes');
 const operationLogRoutes = require('./routes/operation-log.routes');
 const masterDataRoutes = require('./routes/master-data.routes');
+const schedulerRoutes = require('./routes/scheduler.routes');
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/knowledge', knowledgeRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/logs', operationLogRoutes);
 app.use('/api/master', masterDataRoutes);
+app.use('/api/scheduler', schedulerRoutes);
 
 app.use((err, req, res, next) => {
   console.error('服务器错误:', err);

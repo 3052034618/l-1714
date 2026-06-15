@@ -23,6 +23,28 @@ function enrichInterview(interview) {
   };
 }
 
+function matchPositionKeywords(position, questionPosition) {
+  if (!questionPosition) return true;
+  if (!position) return false;
+  if (position === questionPosition) return true;
+
+  const keywordMap = {
+    '工程师': ['高级工程师', '后端工程师', '前端工程师', '全栈工程师', '测试工程师', '运维工程师', '算法工程师', '工程师'],
+    '产品经理': ['高级产品经理', '产品经理', '产品专员', '产品助理'],
+    '设计师': ['高级设计师', 'UI设计师', 'UX设计师', '视觉设计师', '交互设计师', '设计师'],
+    '运营': ['高级运营', '内容运营', '用户运营', '活动运营', '运营专员', '运营'],
+    '销售': ['高级销售', '销售经理', '销售专员', '销售代表', '销售']
+  };
+
+  for (const [keyword, variations] of Object.entries(keywordMap)) {
+    if (questionPosition === keyword || questionPosition.includes(keyword)) {
+      return variations.some(v => position.includes(v));
+    }
+  }
+
+  return false;
+}
+
 function scheduleInterview(resignationId) {
   db.initDatabase();
 
@@ -67,7 +89,11 @@ function scheduleInterview(resignationId) {
     interviewer_id: hrInterviewer ? hrInterviewer.id : null,
     interviewer_name: hrInterviewer ? hrInterviewer.name : null,
     scheduled_at: scheduledAt,
-    status: 'scheduled'
+    status: 'scheduled',
+    employee_accepted: 1,
+    reminder_count: 0,
+    escalated: 0,
+    reject_reminder_count: 0
   });
 
   generateInterviewQuestions(interview.id, resignationWithDetails.position, resignationWithDetails.department_id);
@@ -88,42 +114,58 @@ function scheduleInterview(resignationId) {
 function generateInterviewQuestions(interviewId, position, departmentId) {
   db.initDatabase();
 
-  const questions = db.filter('interview_question_library', q =>
-    q.is_active === 1 &&
-    (q.position === null || q.position === undefined || q.position === position) &&
-    (q.department_id === null || q.department_id === undefined || q.department_id === departmentId)
-  ).sort((a, b) => {
-    if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
-    return (a.sort_order || 0) - (b.sort_order || 0);
-  });
+  const allLibraryQuestions = db.filter('interview_question_library', q => q.is_active === 1);
 
-  const generalQuestions = db.filter('interview_question_library', q =>
-    q.is_active === 1 &&
-    (q.position === null || q.position === undefined) &&
-    (q.department_id === null || q.department_id === undefined)
-  ).sort((a, b) => {
-    if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
-    return (a.sort_order || 0) - (b.sort_order || 0);
-  });
+  const matchedQuestions = [];
 
-  const allQuestions = [...questions];
-  generalQuestions.forEach(gq => {
-    if (!allQuestions.find(q => q.question === gq.question)) {
-      allQuestions.push(gq);
+  allLibraryQuestions.forEach(q => {
+    const positionMatch = matchPositionKeywords(position, q.position);
+    const deptMatch = !q.department_id || q.department_id === departmentId;
+    const isGeneral = !q.position && !q.department_id;
+
+    if (isGeneral || (positionMatch && deptMatch) || (positionMatch && !q.department_id) || (!q.position && deptMatch)) {
+      matchedQuestions.push(q);
     }
   });
 
-  allQuestions.forEach((q, index) => {
+  const uniqueQuestions = [];
+  const seenQuestions = new Set();
+
+  matchedQuestions.sort((a, b) => {
+    const aIsGeneral = !a.position && !a.department_id;
+    const bIsGeneral = !b.position && !b.department_id;
+    if (aIsGeneral && !bIsGeneral) return 1;
+    if (!aIsGeneral && bIsGeneral) return -1;
+
+    if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  });
+
+  matchedQuestions.forEach(q => {
+    if (!seenQuestions.has(q.question)) {
+      seenQuestions.add(q.question);
+      uniqueQuestions.push(q);
+    }
+  });
+
+  uniqueQuestions.sort((a, b) => {
+    if (a.category !== b.category) return (a.category || '').localeCompare(b.category || '');
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  });
+
+  uniqueQuestions.forEach((q, index) => {
     db.insert('interview_question_items', {
       interview_id: interviewId,
       question_library_id: q.id,
       question_text: q.question,
       question_category: q.category,
-      sort_order: index + 1
+      sort_order: index + 1,
+      is_position_specific: q.position ? 1 : 0,
+      is_department_specific: q.department_id ? 1 : 0
     });
   });
 
-  return allQuestions;
+  return uniqueQuestions;
 }
 
 function getInterviewById(id) {
@@ -139,6 +181,14 @@ function getInterviewById(id) {
   ).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
   enriched.questions = questions;
+
+  if (interview.key_points) {
+    try {
+      enriched.key_points_parsed = JSON.parse(interview.key_points);
+    } catch {
+      enriched.key_points_parsed = [];
+    }
+  }
 
   return enriched;
 }
@@ -192,7 +242,9 @@ function rejectInterview(interviewId, rejectReason, operatorId, operatorName) {
   db.update('interviews', interviewId, {
     status: 'rejected',
     employee_accepted: 0,
-    reject_reason: rejectReason
+    reject_reason: rejectReason,
+    reject_reminder_count: 0,
+    last_reject_reminder_at: null
   });
 
   logOperation({
@@ -227,7 +279,9 @@ function rescheduleInterview(interviewId, newScheduledAt, operatorId, operatorNa
 
   db.update('interviews', interviewId, {
     scheduled_at: newScheduledAt,
-    status: 'scheduled'
+    status: 'scheduled',
+    employee_accepted: 1,
+    reject_reason: null
   });
 
   logOperation({
@@ -243,6 +297,79 @@ function rescheduleInterview(interviewId, newScheduledAt, operatorId, operatorNa
   return getInterviewById(interviewId);
 }
 
+function analyzeRecording(recordingText) {
+  const insights = {
+    categories: {},
+    keyPoints: [],
+    sentiment: 'neutral',
+    recording_summary: ''
+  };
+
+  if (!recordingText) return insights;
+
+  const categoryKeywords = {
+    '职业发展': ['晋升', '发展', '成长', '职业规划', '学习', '培训', '技能', '晋级', '上升空间', '职业'],
+    '薪酬福利': ['工资', '薪资', '薪水', '福利', '奖金', '加薪', '待遇', '补贴', '公积金', '社保'],
+    '工作环境': ['办公', '环境', '氛围', '公司文化', '文化', '设施', '食堂', '工位', '加班'],
+    '团队协作': ['团队', '协作', '沟通', '同事', '部门', '配合', '流程', '效率'],
+    '管理问题': ['管理', '领导', '上级', '经理', '总监', '决策', '制度', '流程', '公平'],
+    '工作压力': ['压力', '累', '工作量', '996', '加班', '倦怠', '焦虑', '辛苦', '繁忙'],
+    '家庭原因': ['家庭', '孩子', '老人', '照顾', '搬家', '异地', '回家', '父母']
+  };
+
+  const sentences = recordingText.split(/[。！？.!?\n]+/).filter(s => s.trim().length > 5);
+
+  sentences.forEach(sentence => {
+    const trimmedSentence = sentence.trim();
+    
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+      const matchedKeywords = keywords.filter(kw => trimmedSentence.includes(kw));
+      if (matchedKeywords.length > 0) {
+        if (!insights.categories[category]) {
+          insights.categories[category] = [];
+        }
+        insights.categories[category].push({
+          question: '录音分析提取',
+          answer: trimmedSentence,
+          matched_keywords: matchedKeywords
+        });
+      }
+    }
+  });
+
+  const keySentences = sentences
+    .filter(s => s.trim().length > 15)
+    .slice(0, 5)
+    .map(s => s.trim().substring(0, 80) + (s.trim().length > 80 ? '...' : ''));
+  
+  insights.keyPoints = keySentences;
+
+  const negativeKeywords = ['不满意', '不好', '差', '问题', '压力大', '累', '不满', '糟糕', '失望', '难受', '不公平', '低', '少'];
+  const positiveKeywords = ['满意', '好', '棒', '优秀', '感谢', '开心', '不错', '喜欢', '很好', '非常好', '成长', '收获'];
+
+  let negativeCount = 0;
+  let positiveCount = 0;
+
+  negativeKeywords.forEach(kw => {
+    if (recordingText.includes(kw)) negativeCount++;
+  });
+  positiveKeywords.forEach(kw => {
+    if (recordingText.includes(kw)) positiveCount++;
+  });
+
+  if (negativeCount > positiveCount) {
+    insights.sentiment = 'negative';
+  } else if (positiveCount > negativeCount) {
+    insights.sentiment = 'positive';
+  }
+
+  if (sentences.length > 0) {
+    insights.recording_summary = sentences.slice(0, 3).join('。') + '。';
+  }
+
+  return insights;
+}
+
 function recordInterviewResult(interviewId, data) {
   db.initDatabase();
 
@@ -253,14 +380,47 @@ function recordInterviewResult(interviewId, data) {
 
   const now = formatDate(new Date());
 
+  let summary = data.summary || null;
+  let feedbackCategory = data.feedback_category || null;
+  let keyPoints = data.key_points ? JSON.stringify(data.key_points) : null;
+
+  if ((data.recording_text || data.recording_url) && (!data.answers || data.answers.length === 0)) {
+    const recordingInsights = analyzeRecording(data.recording_text || '（录音内容，已转录为文本分析）');
+    
+    if (!summary && recordingInsights.recording_summary) {
+      summary = recordingInsights.recording_summary;
+    }
+    
+    if (!feedbackCategory && Object.keys(recordingInsights.categories).length > 0) {
+      feedbackCategory = Object.keys(recordingInsights.categories)[0];
+    }
+    
+    if (!keyPoints && recordingInsights.keyPoints.length > 0) {
+      keyPoints = JSON.stringify(recordingInsights.keyPoints);
+    }
+
+    const questions = interview.questions;
+    questions.forEach(q => {
+      const categoryAnswers = recordingInsights.categories[q.question_category];
+      if (categoryAnswers && categoryAnswers.length > 0) {
+        const combinedAnswer = categoryAnswers.map(ca => ca.answer).join('；');
+        db.update('interview_question_items', q.id, {
+          answer: `【录音分析】${combinedAnswer.substring(0, 200)}`
+        });
+      }
+    });
+  }
+
   db.update('interviews', interviewId, {
     status: 'completed',
     actual_start_at: data.actual_start_at || now,
     actual_end_at: data.actual_end_at || now,
     recording_url: data.recording_url || null,
-    summary: data.summary || null,
-    feedback_category: data.feedback_category || null,
-    key_points: data.key_points ? JSON.stringify(data.key_points) : null
+    recording_text: data.recording_text || null,
+    summary: summary,
+    feedback_category: feedbackCategory,
+    key_points: keyPoints,
+    is_recording_analysis: (data.recording_text || data.recording_url) ? 1 : 0
   });
 
   if (data.answers && data.answers.length > 0) {
@@ -282,7 +442,7 @@ function recordInterviewResult(interviewId, data) {
     operatorId: data.operator_id,
     operatorName: data.operator_name,
     departmentId: interview.department_id,
-    detail: '完成面谈记录，已生成改进工单'
+    detail: data.recording_text ? '完成面谈记录（含录音分析），已生成改进工单' : '完成面谈记录，已生成改进工单'
   });
 
   return getInterviewById(interviewId);
@@ -312,7 +472,9 @@ function analyzeInterviewFeedback(interviewId) {
 
       if (q.answer.length > 20) {
         const firstSentence = q.answer.substring(0, 50) + '...';
-        insights.keyPoints.push(firstSentence);
+        if (!insights.keyPoints.includes(firstSentence)) {
+          insights.keyPoints.push(firstSentence);
+        }
       }
     }
   });
@@ -351,21 +513,37 @@ function remindInterview(interviewId) {
     throw new Error('面谈记录不存在');
   }
 
-  const newCount = (interview.reminder_count || 0) + 1;
+  const isRejected = interview.status === 'rejected';
+  const countField = isRejected ? 'reject_reminder_count' : 'reminder_count';
+  const lastReminderField = isRejected ? 'last_reject_reminder_at' : 'last_reminder_at';
+  
+  const currentCount = interview[countField] || 0;
+  const newCount = currentCount + 1;
   const now = formatDate(new Date());
 
-  db.update('interviews', interviewId, {
-    reminder_count: newCount,
-    last_reminder_at: now
-  });
+  const updateData = {};
+  updateData[countField] = newCount;
+  updateData[lastReminderField] = now;
+  db.update('interviews', interviewId, updateData);
+
+  let reminderContent = '';
+  let reminderType = '';
+  
+  if (isRejected) {
+    reminderContent = `请确认是否参加离职面谈，您之前已拒绝面谈安排。我们可以重新安排时间。这是第${newCount}次提醒。`;
+    reminderType = 'interview_reject_reminder';
+  } else {
+    reminderContent = `请确认并参加您的离职面谈，时间：${interview.scheduled_at}。这是第${newCount}次提醒。`;
+    reminderType = 'interview_reminder';
+  }
 
   reminderService.createReminder({
     relatedId: interviewId,
     relatedType: 'interview',
     recipientId: interview.employee_id,
     recipientEmail: interview.employee_email,
-    reminderType: 'interview_reminder',
-    content: `请确认并参加您的离职面谈，时间：${interview.scheduled_at}。这是第${newCount}次提醒。`
+    reminderType: reminderType,
+    content: reminderContent
   });
 
   logOperation({
@@ -375,7 +553,7 @@ function remindInterview(interviewId) {
     operatorId: 'system',
     operatorName: '系统自动',
     departmentId: interview.department_id,
-    detail: `第${newCount}次面谈催办`
+    detail: `第${newCount}次${isRejected ? '拒绝后' : ''}面谈催办`
   });
 
   if (newCount >= config.interview.maxReminders && !interview.escalated) {
@@ -402,13 +580,14 @@ function escalateInterview(interviewId) {
   });
 
   if (hrDirector) {
+    const statusText = interview.status === 'rejected' ? '员工拒绝面谈并已催办' : '面谈已催办';
     reminderService.createReminder({
       relatedId: interviewId,
       relatedType: 'interview',
       recipientId: hrDirector.id,
       recipientEmail: hrDirector.email,
       reminderType: 'interview_escalation',
-      content: `离职面谈已催办${config.interview.maxReminders}次，员工仍未回应，请HR总监介入处理。员工：${interview.employee_name}`
+      content: `离职面谈${statusText}${config.interview.maxReminders}次，员工仍未回应，请HR总监介入处理。员工：${interview.employee_name}，部门：${interview.department_name}`
     });
   }
 
@@ -439,7 +618,9 @@ module.exports = {
   rescheduleInterview,
   recordInterviewResult,
   analyzeInterviewFeedback,
+  analyzeRecording,
   remindInterview,
   escalateInterview,
-  getInterviewsByStatus
+  getInterviewsByStatus,
+  matchPositionKeywords
 };
