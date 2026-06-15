@@ -142,7 +142,117 @@ function generateMonthlyStats(year, month, departmentId = null) {
     stats.overall.completed_tickets = stats.departments.reduce((sum, d) => sum + d.completed_tickets, 0);
   }
 
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  stats.department_month_over_month = calculateDepartmentMoMComparison(year, month, departmentId);
+  stats.previous_month = {
+    year: prevYear,
+    month: prevMonth,
+    label: `${prevYear}年${prevMonth}月`
+  };
+
   return stats;
+}
+
+function calculateDepartmentMoMComparison(currentYear, currentMonth, departmentId = null) {
+  const allDepartments = db.findAll('departments');
+  const departments = departmentId 
+    ? allDepartments.filter(d => d.id === departmentId)
+    : allDepartments;
+
+  const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+  const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+
+  const currentStats = calculateDepartmentStatsForMonth(currentYear, currentMonth, departments);
+  const prevStats = calculateDepartmentStatsForMonth(prevYear, prevMonth, departments);
+
+  return departments.map(dept => {
+    const current = currentStats[dept.id] || {
+      total_resignations: 0,
+      interview_completion_rate: 0,
+      knowledge_transfer_rate: 0,
+      total_tickets: 0
+    };
+    const prev = prevStats[dept.id] || {
+      total_resignations: 0,
+      interview_completion_rate: 0,
+      knowledge_transfer_rate: 0,
+      total_tickets: 0
+    };
+
+    return {
+      department_id: dept.id,
+      department_name: dept.name,
+      current: {
+        total_resignations: current.total_resignations,
+        interview_completion_rate: current.interview_completion_rate,
+        knowledge_transfer_rate: current.knowledge_transfer_rate,
+        total_tickets: current.total_tickets
+      },
+      previous: {
+        total_resignations: prev.total_resignations,
+        interview_completion_rate: prev.interview_completion_rate,
+        knowledge_transfer_rate: prev.knowledge_transfer_rate,
+        total_tickets: prev.total_tickets
+      },
+      change: {
+        total_resignations: current.total_resignations - prev.total_resignations,
+        total_resignations_pct: prev.total_resignations > 0 
+          ? Math.round(((current.total_resignations - prev.total_resignations) / prev.total_resignations) * 100)
+          : (current.total_resignations > 0 ? 100 : 0),
+        interview_completion_rate: current.interview_completion_rate - prev.interview_completion_rate,
+        knowledge_transfer_rate: current.knowledge_transfer_rate - prev.knowledge_transfer_rate,
+        total_tickets: current.total_tickets - prev.total_tickets
+      }
+    };
+  });
+}
+
+function calculateDepartmentStatsForMonth(year, month, departments) {
+  const { start, end } = getMonthRange(year, month);
+  const result = {};
+
+  const allResignations = db.filter('resignation_applications', item => 
+    item.created_at >= start && item.created_at <= end
+  );
+
+  const allInterviews = db.findAll('interviews');
+  const allKtTasks = db.findAll('knowledge_transfer_tasks');
+  const allTickets = db.findAll('improvement_tickets');
+
+  departments.forEach(dept => {
+    const deptResignations = allResignations.filter(r => r.department_id === dept.id);
+    const deptIds = deptResignations.map(r => r.id);
+
+    let interviewCompleted = 0;
+    let interviewTotal = 0;
+    if (deptIds.length > 0) {
+      const deptInterviews = allInterviews.filter(i => deptIds.includes(i.resignation_id));
+      interviewTotal = deptInterviews.length;
+      interviewCompleted = deptInterviews.filter(i => i.status === 'completed').length;
+    }
+
+    let ktCompleted = 0;
+    let ktTotal = 0;
+    if (deptIds.length > 0) {
+      const deptKtTasks = allKtTasks.filter(t => deptIds.includes(t.resignation_id));
+      ktTotal = deptKtTasks.length;
+      ktCompleted = deptKtTasks.filter(t => t.status === 'completed').length;
+    }
+
+    const deptTickets = allTickets.filter(t => 
+      t.department_id === dept.id && t.created_at >= start && t.created_at <= end
+    );
+
+    result[dept.id] = {
+      total_resignations: deptResignations.length,
+      interview_completion_rate: interviewTotal > 0 ? Math.round((interviewCompleted / interviewTotal) * 100) : 0,
+      knowledge_transfer_rate: ktTotal > 0 ? Math.round((ktCompleted / ktTotal) * 100) : 0,
+      total_tickets: deptTickets.length
+    };
+  });
+
+  return result;
 }
 
 function generateMonthlyRangeStats(startYear, startMonth, endYear, endMonth, departmentId = null) {
@@ -519,6 +629,8 @@ module.exports = {
   generateMonthlyStats,
   generateMonthlyRangeStats,
   generateMonthKeys,
+  calculateDepartmentMoMComparison,
+  calculateDepartmentStatsForMonth,
   generateMonthlyReportPDF,
   generateMonthlyReportExcel,
   generateMonthlyReport

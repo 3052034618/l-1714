@@ -64,6 +64,25 @@ router.post('/exit/:resignationId', async (req, res) => {
   }
 });
 
+router.get('/:id/export', (req, res) => {
+  try {
+    const { format = 'json' } = req.query;
+    const result = reportService.exportReport(req.params.id, format);
+    
+    if (format === 'text') {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      res.send(result.content);
+    } else {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+      res.json(result.content);
+    }
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 router.get('/:id', (req, res) => {
   try {
     const report = reportService.getReportById(req.params.id);
