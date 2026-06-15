@@ -390,12 +390,17 @@ function reassignTransferTask(taskId, assigneeId, assigneeName, operatorId, oper
   return task;
 }
 
-function getKnowledgeTransferStats(departmentId = null) {
+function getKnowledgeTransferStats(departmentId = null, resignationId = null) {
   db.initDatabase();
 
   let tasks = db.findAll('knowledge_transfer_tasks');
 
-  if (departmentId) {
+  if (resignationId) {
+    tasks = tasks.filter(task => {
+      const asset = db.findById('knowledge_assets', task.knowledge_asset_id);
+      return asset && asset.resignation_id === resignationId;
+    });
+  } else if (departmentId) {
     tasks = tasks.filter(task => {
       const asset = db.findById('knowledge_assets', task.knowledge_asset_id);
       if (!asset || !asset.resignation_id) return false;

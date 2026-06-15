@@ -14,7 +14,7 @@ module.exports = {
   },
   interview: {
     defaultDaysAfterResignation: 3,
-    remindIntervalDays: 2,
+    remindIntervalDays: 1,
     maxReminders: 3,
     escalationRole: 'hr_director'
   },

@@ -2,7 +2,7 @@ const db = require('../db');
 const { addDays } = require('../utils/date');
 const { logOperation, OperationType, ModuleType } = require('../utils/operation-log');
 
-function generateTicketsFromInterview(interviewId, insights) {
+function generateTicketsFromInterview(interviewId, insights, analysisSource) {
   db.initDatabase();
 
   const interview = db.findById('interviews', interviewId);
@@ -23,21 +23,32 @@ function generateTicketsFromInterview(interviewId, insights) {
 
   const tickets = [];
 
+  let sourceLabel = '';
+  let sourcePrefix = '';
+  if (analysisSource === 'recording_url') {
+    sourceLabel = '（录音地址分析）';
+    sourcePrefix = '【录音地址分析】';
+  } else if (analysisSource === 'recording_text') {
+    sourceLabel = '（录音文本分析）';
+    sourcePrefix = '【录音文本分析】';
+  }
+
   if (insights.categories) {
     Object.entries(insights.categories).forEach(([category, qaList]) => {
       const hasSignificantFeedback = qaList.some(
-        qa => qa.answer && qa.answer.length > 30
+        qa => qa.answer && qa.answer.length > 10
       );
 
       if (hasSignificantFeedback) {
         const ticketId = createTicket({
           interview_id: interviewId,
           resignation_id: interview.resignation_id,
-          title: `【${category}】改进建议`,
-          description: generateTicketDescription(category, qaList),
+          title: `${sourcePrefix}【${category}】改进建议${sourceLabel}`,
+          description: generateTicketDescription(category, qaList, analysisSource),
           category,
           priority: insights.sentiment === 'negative' ? 'high' : 'medium',
-          department_id: interviewWithDept.department_id
+          department_id: interviewWithDept.department_id,
+          source: analysisSource || 'manual'
         });
 
         tickets.push(ticketId);
@@ -49,11 +60,12 @@ function generateTicketsFromInterview(interviewId, insights) {
     const generalTicketId = createTicket({
       interview_id: interviewId,
       resignation_id: interview.resignation_id,
-      title: '离职面谈关键反馈汇总',
+      title: `${sourcePrefix}离职面谈关键反馈汇总${sourceLabel}`,
       description: insights.keyPoints.join('\n\n'),
       category: '综合反馈',
       priority: 'medium',
-      department_id: interviewWithDept.department_id
+      department_id: interviewWithDept.department_id,
+      source: analysisSource || 'manual'
     });
     tickets.push(generalTicketId);
   }
@@ -61,8 +73,15 @@ function generateTicketsFromInterview(interviewId, insights) {
   return tickets;
 }
 
-function generateTicketDescription(category, qaList) {
-  let description = `## ${category}相关反馈：\n\n`;
+function generateTicketDescription(category, qaList, analysisSource) {
+  let sourceNote = '';
+  if (analysisSource === 'recording_url') {
+    sourceNote = '> 来源：录音地址智能分析\n\n';
+  } else if (analysisSource === 'recording_text') {
+    sourceNote = '> 来源：录音文本关键词分析\n\n';
+  }
+
+  let description = `## ${category}相关反馈：\n\n${sourceNote}`;
 
   qaList.forEach((qa, index) => {
     if (qa.answer) {
@@ -91,7 +110,8 @@ function createTicket(data) {
     due_date: dueDate,
     assignee_id: null,
     assignee_name: null,
-    completed_at: null
+    completed_at: null,
+    source: data.source || 'manual'
   });
 
   if (data.department_id) {
@@ -231,13 +251,17 @@ function assignTicket(id, assigneeId, assigneeName, operatorId, operatorName) {
   return getTicketById(id);
 }
 
-function getTicketStats(departmentId = null) {
+function getTicketStats(departmentId = null, resignationId = null) {
   db.initDatabase();
 
   let tickets = db.findAll('improvement_tickets');
 
   if (departmentId) {
     tickets = tickets.filter(item => item.department_id === departmentId);
+  }
+
+  if (resignationId) {
+    tickets = tickets.filter(item => item.resignation_id === resignationId);
   }
 
   const result = {

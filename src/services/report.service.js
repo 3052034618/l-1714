@@ -15,28 +15,52 @@ function generateExitReport(resignationId, operatorId, operatorName) {
   const employee = db.findById('employees', resignation.employee_id);
   const department = resignation.department_id ? db.findById('departments', resignation.department_id) : null;
 
-  const interview = db.findOne('interviews', item => 
-    item.resignation_id === resignationId && item.status === 'completed'
-  );
+  const interviews = db.filter('interviews', item => 
+    item.resignation_id === resignationId
+  ).sort((a, b) => b.created_at.localeCompare(a.created_at));
 
-  const interviewInfo = interview ? {
-    scheduled_at: interview.scheduled_at,
-    actual_start_at: interview.actual_start_at,
-    actual_end_at: interview.actual_end_at,
-    summary: interview.summary,
-    feedback_category: interview.feedback_category,
-    key_points: interview.key_points
+  const completedInterview = interviews.find(i => i.status === 'completed');
+
+  const interviewInfo = completedInterview ? {
+    interview_id: completedInterview.id,
+    scheduled_at: completedInterview.scheduled_at,
+    actual_start_at: completedInterview.actual_start_at,
+    actual_end_at: completedInterview.actual_end_at,
+    summary: completedInterview.summary,
+    feedback_category: completedInterview.feedback_category,
+    key_points: completedInterview.key_points,
+    is_recording_analysis: completedInterview.is_recording_analysis,
+    recording_analysis_source: completedInterview.recording_analysis_source,
+    recording_url: completedInterview.recording_url
   } : null;
 
-  const tickets = ticketService.getTicketList({ resignation_id: resignationId, pageSize: 100 });
-  const ticketStats = ticketService.getTicketStats(resignation.department_id);
+  const ticketParams = { resignation_id: resignationId, pageSize: 100 };
+  const tickets = ticketService.getTicketList(ticketParams);
+  const ticketStats = ticketService.getTicketStats(null, resignationId);
 
   const knowledgeAssets = knowledgeAssetService.getKnowledgeAssets({ resignation_id: resignationId });
-  const transferStats = knowledgeAssetService.getKnowledgeTransferStats(resignation.department_id);
+  const transferStats = knowledgeAssetService.getKnowledgeTransferStats(null, resignationId);
+
+  const interviewQuestions = completedInterview 
+    ? db.filter('interview_question_items', q => q.interview_id === completedInterview.id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map(q => ({
+          id: q.id,
+          question_text: q.question_text,
+          question_category: q.question_category,
+          answer: q.answer,
+          is_position_specific: q.is_position_specific,
+          is_department_specific: q.is_department_specific
+        }))
+    : [];
 
   const report = {
+    resignation_id: resignationId,
     resignation: {
+      id: resignationId,
+      employee_id: resignation.employee_id,
       employee_name: employee ? employee.name : null,
+      department_id: resignation.department_id,
       department: department ? department.name : null,
       position: employee ? employee.position : null,
       level: employee ? employee.level : null,
@@ -48,6 +72,7 @@ function generateExitReport(resignationId, operatorId, operatorName) {
       status: resignation.status
     },
     interview: interviewInfo,
+    interview_questions: interviewQuestions,
     tickets: {
       total: tickets.total,
       list: tickets.list,
@@ -59,6 +84,11 @@ function generateExitReport(resignationId, operatorId, operatorName) {
       completion_rate: transferStats.completionRate,
       stats: transferStats
     },
+    data_scope: {
+      description: '仅包含当前离职申请相关数据',
+      resignation_id: resignationId,
+      employee_id: resignation.employee_id
+    },
     generated_at: formatDate(new Date())
   };
 
@@ -68,6 +98,8 @@ function generateExitReport(resignationId, operatorId, operatorName) {
     description: `离职日期：${resignation.last_working_date}`,
     period: null,
     department_id: resignation.department_id,
+    resignation_id: resignationId,
+    employee_id: resignation.employee_id,
     file_path: null,
     file_format: 'json',
     generated_by: operatorId
@@ -80,7 +112,7 @@ function generateExitReport(resignationId, operatorId, operatorName) {
     operatorId,
     operatorName,
     departmentId: resignation.department_id,
-    detail: `生成离职报告：${employee ? employee.name : ''}`
+    detail: `生成离职报告：${employee ? employee.name : ''}（仅包含当前离职申请数据）`
   });
 
   return {
@@ -98,6 +130,8 @@ function saveReportRecord(data) {
     description: data.description || null,
     period: data.period || null,
     department_id: data.department_id || null,
+    resignation_id: data.resignation_id || null,
+    employee_id: data.employee_id || null,
     file_path: data.file_path || null,
     file_format: data.file_format || 'json',
     generated_by: data.generated_by || null
@@ -139,7 +173,22 @@ function getReportList(params = {}) {
 function getReportById(id) {
   db.initDatabase();
   const report = db.findById('reports', id);
-  return enrichReport(report);
+  if (!report) return null;
+
+  const enriched = enrichReport(report);
+
+  if (report.report_type === 'exit' && report.resignation_id) {
+    const fullReport = generateExitReport(report.resignation_id, report.generated_by || 'system', '系统查询');
+    return {
+      ...enriched,
+      ...fullReport,
+      report_id: id,
+      created_at: report.created_at,
+      updated_at: report.updated_at
+    };
+  }
+
+  return enriched;
 }
 
 module.exports = {

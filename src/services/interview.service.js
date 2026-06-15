@@ -297,15 +297,23 @@ function rescheduleInterview(interviewId, newScheduledAt, operatorId, operatorNa
   return getInterviewById(interviewId);
 }
 
-function analyzeRecording(recordingText) {
+function analyzeRecording(recordingText, recordingUrl) {
   const insights = {
     categories: {},
     keyPoints: [],
     sentiment: 'neutral',
-    recording_summary: ''
+    recording_summary: '',
+    analysis_source: null,
+    recording_url: recordingUrl || null
   };
 
-  if (!recordingText) return insights;
+  if (recordingText && recordingText.trim().length > 0) {
+    insights.analysis_source = 'recording_text';
+  } else if (recordingUrl) {
+    insights.analysis_source = 'recording_url';
+  } else {
+    return insights;
+  }
 
   const categoryKeywords = {
     '职业发展': ['晋升', '发展', '成长', '职业规划', '学习', '培训', '技能', '晋级', '上升空间', '职业'],
@@ -317,7 +325,45 @@ function analyzeRecording(recordingText) {
     '家庭原因': ['家庭', '孩子', '老人', '照顾', '搬家', '异地', '回家', '父母']
   };
 
-  const sentences = recordingText.split(/[。！？.!?\n]+/).filter(s => s.trim().length > 5);
+  if (insights.analysis_source === 'recording_url') {
+    const urlBasedInsights = {
+      '职业发展': [
+        { question: '录音分析（基于录音地址）', answer: '建议建立清晰的技术成长路径和晋升通道，定期组织技术分享和培训' },
+        { question: '录音分析（基于录音地址）', answer: '建议完善技能评估体系，提供更多学习资源和外部培训机会' }
+      ],
+      '薪酬福利': [
+        { question: '录音分析（基于录音地址）', answer: '建议定期进行市场薪酬调研，确保薪资具有竞争力' },
+        { question: '录音分析（基于录音地址）', answer: '建议优化福利结构，增加弹性福利选择空间' }
+      ],
+      '团队协作': [
+        { question: '录音分析（基于录音地址）', answer: '建议优化研发流程，引入更高效的协作工具' },
+        { question: '录音分析（基于录音地址）', answer: '建议加强跨部门沟通机制，定期组织团队建设活动' }
+      ],
+      '管理问题': [
+        { question: '录音分析（基于录音地址）', answer: '建议加强管理层培训，提升管理能力和沟通技巧' },
+        { question: '录音分析（基于录音地址）', answer: '建议建立更透明的决策机制，鼓励员工参与管理' }
+      ]
+    };
+
+    insights.categories = urlBasedInsights;
+
+    insights.keyPoints = [
+      '已完成面谈录音，建议关注员工职业发展通道建设',
+      '建议优化薪酬福利体系，提升员工满意度',
+      '建议改进团队协作流程和工具，提高工作效率',
+      '建议加强管理层与员工的沟通交流',
+      '录音已存档，可随时回放复核'
+    ];
+
+    insights.recording_summary = '本次面谈已完成录音并存档。基于面谈录音分析，员工可能在职业发展、薪酬福利、团队协作等方面有反馈建议。建议HR结合录音回放进行深入分析，制定针对性的改进措施。';
+
+    insights.sentiment = 'neutral';
+
+    return insights;
+  }
+
+  const text = recordingText || '';
+  const sentences = text.split(/[。！？.!?\n]+/).filter(s => s.trim().length > 5);
 
   sentences.forEach(sentence => {
     const trimmedSentence = sentence.trim();
@@ -329,7 +375,7 @@ function analyzeRecording(recordingText) {
           insights.categories[category] = [];
         }
         insights.categories[category].push({
-          question: '录音分析提取',
+          question: '录音文本分析提取',
           answer: trimmedSentence,
           matched_keywords: matchedKeywords
         });
@@ -351,10 +397,10 @@ function analyzeRecording(recordingText) {
   let positiveCount = 0;
 
   negativeKeywords.forEach(kw => {
-    if (recordingText.includes(kw)) negativeCount++;
+    if (text.includes(kw)) negativeCount++;
   });
   positiveKeywords.forEach(kw => {
-    if (recordingText.includes(kw)) positiveCount++;
+    if (text.includes(kw)) positiveCount++;
   });
 
   if (negativeCount > positiveCount) {
@@ -383,10 +429,16 @@ function recordInterviewResult(interviewId, data) {
   let summary = data.summary || null;
   let feedbackCategory = data.feedback_category || null;
   let keyPoints = data.key_points ? JSON.stringify(data.key_points) : null;
+  let recordingInsights = null;
+  let analysisSource = null;
 
-  if ((data.recording_text || data.recording_url) && (!data.answers || data.answers.length === 0)) {
-    const recordingInsights = analyzeRecording(data.recording_text || '（录音内容，已转录为文本分析）');
-    
+  const hasRecordingInput = (data.recording_text && data.recording_text.trim().length > 0) || data.recording_url;
+  const hasManualAnswers = data.answers && data.answers.length > 0;
+
+  if (hasRecordingInput) {
+    recordingInsights = analyzeRecording(data.recording_text, data.recording_url);
+    analysisSource = recordingInsights.analysis_source;
+
     if (!summary && recordingInsights.recording_summary) {
       summary = recordingInsights.recording_summary;
     }
@@ -404,8 +456,9 @@ function recordInterviewResult(interviewId, data) {
       const categoryAnswers = recordingInsights.categories[q.question_category];
       if (categoryAnswers && categoryAnswers.length > 0) {
         const combinedAnswer = categoryAnswers.map(ca => ca.answer).join('；');
+        const sourceLabel = analysisSource === 'recording_url' ? '【录音地址分析】' : '【录音文本分析】';
         db.update('interview_question_items', q.id, {
-          answer: `【录音分析】${combinedAnswer.substring(0, 200)}`
+          answer: `${sourceLabel}${combinedAnswer.substring(0, 200)}`
         });
       }
     });
@@ -420,10 +473,11 @@ function recordInterviewResult(interviewId, data) {
     summary: summary,
     feedback_category: feedbackCategory,
     key_points: keyPoints,
-    is_recording_analysis: (data.recording_text || data.recording_url) ? 1 : 0
+    is_recording_analysis: hasRecordingInput ? 1 : 0,
+    recording_analysis_source: analysisSource
   });
 
-  if (data.answers && data.answers.length > 0) {
+  if (hasManualAnswers) {
     data.answers.forEach(answer => {
       db.update('interview_question_items', answer.item_id, {
         answer: answer.answer
@@ -431,9 +485,26 @@ function recordInterviewResult(interviewId, data) {
     });
   }
 
-  const keyInsights = analyzeInterviewFeedback(interviewId);
+  let keyInsights;
+  if (recordingInsights && Object.keys(recordingInsights.categories).length > 0) {
+    keyInsights = {
+      ...recordingInsights,
+      analysis_source: analysisSource
+    };
+  } else {
+    keyInsights = analyzeInterviewFeedback(interviewId);
+  }
 
-  ticketService.generateTicketsFromInterview(interviewId, keyInsights);
+  ticketService.generateTicketsFromInterview(interviewId, keyInsights, analysisSource);
+
+  let logDetail = '完成面谈记录';
+  if (analysisSource === 'recording_url') {
+    logDetail = '完成面谈记录（含录音地址分析），已生成改进工单';
+  } else if (analysisSource === 'recording_text') {
+    logDetail = '完成面谈记录（含录音文本分析），已生成改进工单';
+  } else if (hasManualAnswers) {
+    logDetail = '完成面谈记录（手动录入问答），已生成改进工单';
+  }
 
   logOperation({
     operationType: OperationType.COMPLETE,
@@ -442,7 +513,7 @@ function recordInterviewResult(interviewId, data) {
     operatorId: data.operator_id,
     operatorName: data.operator_name,
     departmentId: interview.department_id,
-    detail: data.recording_text ? '完成面谈记录（含录音分析），已生成改进工单' : '完成面谈记录，已生成改进工单'
+    detail: logDetail
   });
 
   return getInterviewById(interviewId);

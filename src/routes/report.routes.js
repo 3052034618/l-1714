@@ -14,10 +14,25 @@ router.get('/', (req, res) => {
 
 router.get('/monthly/stats', (req, res) => {
   try {
-    const { year, month } = req.query;
-    const stats = monthlyReportService.generateMonthlyStats(
-      parseInt(year), parseInt(month)
-    );
+    const { year, month, start_year, start_month, end_year, end_month, department_id } = req.query;
+    
+    let stats;
+    
+    if (start_year && start_month && end_year && end_month) {
+      stats = monthlyReportService.generateMonthlyRangeStats(
+        parseInt(start_year),
+        parseInt(start_month),
+        parseInt(end_year),
+        parseInt(end_month),
+        department_id
+      );
+    } else {
+      const currentDate = new Date();
+      const y = year ? parseInt(year) : currentDate.getFullYear();
+      const m = month ? parseInt(month) : currentDate.getMonth() + 1;
+      stats = monthlyReportService.generateMonthlyStats(y, m, department_id);
+    }
+    
     res.json({ success: true, data: stats });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
