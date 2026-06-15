@@ -39,6 +39,19 @@ router.get('/monthly/stats', (req, res) => {
   }
 });
 
+router.get('/monthly/department/:departmentId', (req, res) => {
+  try {
+    const { year, month } = req.query;
+    const currentDate = new Date();
+    const y = year ? parseInt(year) : currentDate.getFullYear();
+    const m = month ? parseInt(month) : currentDate.getMonth() + 1;
+    const data = monthlyReportService.getDepartmentDrilldown(y, m, req.params.departmentId);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 router.post('/monthly', async (req, res) => {
   try {
     const { year, month, operator_id, operator_name } = req.body;

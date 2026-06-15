@@ -16,4 +16,17 @@ router.get('/summary', (req, res) => {
   }
 });
 
+router.get('/my-todos', (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) {
+      return res.status(400).json({ success: false, message: '缺少 user_id 参数' });
+    }
+    const data = hrDashboardService.getMyTodos(user_id);
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

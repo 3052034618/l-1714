@@ -73,6 +73,14 @@ function generateExitReport(resignationId, operatorId, operatorName) {
         }))
     : [];
 
+  const ktStatsNormalized = {
+    total: transferStats.total || 0,
+    pending: transferStats.pending || 0,
+    in_progress: transferStats.in_progress || 0,
+    completed: transferStats.completed || 0,
+    completion_rate: transferStats.completionRate || 0
+  };
+
   const reportContent = {
     resignation_id: resignationId,
     resignation: {
@@ -100,8 +108,8 @@ function generateExitReport(resignationId, operatorId, operatorName) {
     knowledge_transfer: {
       total_assets: knowledgeAssets.length,
       assets: knowledgeAssets,
-      completion_rate: transferStats.completionRate,
-      stats: transferStats
+      completion_rate: ktStatsNormalized.completion_rate,
+      stats: ktStatsNormalized
     },
     data_scope: {
       description: '仅包含当前离职申请相关数据',
@@ -170,7 +178,11 @@ function saveReportRecord(data) {
     file_path: data.file_path || null,
     file_format: data.file_format || 'json',
     generated_by: data.generated_by || null,
-    content: data.content || null
+    content: data.content || null,
+    report_status: data.report_status || 'generated',
+    export_count: 0,
+    last_export_format: null,
+    last_export_at: null
   });
 
   return record.id;
@@ -245,6 +257,14 @@ function exportReport(id, format = 'json') {
     throw new Error('报告不存在');
   }
 
+  db.initDatabase();
+  db.update('reports', id, {
+    last_export_format: format,
+    last_export_at: formatDate(new Date()),
+    export_count: (db.findById('reports', id).export_count || 0) + 1,
+    report_status: 'exported'
+  });
+
   if (format === 'json') {
     return {
       format: 'json',
@@ -287,7 +307,16 @@ function generateReportSummary(report) {
   if (report.interview) {
     lines.push('【面谈信息】');
     lines.push(`面谈状态: 已完成`);
-    lines.push(`面谈来源: ${report.interview.recording_analysis_source || '现场面谈'}`);
+    const interviewSource = report.interview.recording_analysis_source;
+    if (interviewSource === 'recording_url') {
+      lines.push(`面谈来源: 录音地址分析`);
+    } else if (interviewSource === 'recording_text') {
+      lines.push(`面谈来源: 录音文本分析`);
+    } else if (interviewSource) {
+      lines.push(`面谈来源: ${interviewSource}`);
+    } else {
+      lines.push(`面谈来源: 现场面谈`);
+    }
     if (report.interview.recording_url) {
       lines.push(`录音地址: ${report.interview.recording_url}`);
     }
@@ -317,40 +346,42 @@ function generateReportSummary(report) {
 
   if (report.knowledge_transfer) {
     lines.push('【知识转移】');
-    lines.push(`知识资产总数: ${report.knowledge_transfer.total_assets || 0}`);
-    lines.push(`完成率: ${(report.knowledge_transfer.completion_rate * 100).toFixed(1)}%`);
-    if (report.knowledge_transfer.stats) {
-      const s = report.knowledge_transfer.stats;
-      lines.push(`已完成: ${s.completed || 0}`);
-      lines.push(`进行中: ${s.in_progress || 0}`);
-      lines.push(`待处理: ${s.pending || 0}`);
-      lines.push(`超期: ${s.overdue || 0}`);
-    }
+    const ktStats = report.knowledge_transfer.stats || {};
+    const totalAssets = ktStats.total || report.knowledge_transfer.total_assets || 0;
+    const completedCount = ktStats.completed || 0;
+    const completionRate = ktStats.completion_rate || report.knowledge_transfer.completion_rate || 0;
+    
+    lines.push(`知识资产总数: ${totalAssets}`);
+    lines.push(`已完成: ${completedCount}`);
+    lines.push(`进行中: ${ktStats.in_progress || 0}`);
+    lines.push(`待处理: ${ktStats.pending || 0}`);
+    lines.push(`完成率: ${completionRate}%`);
     lines.push('');
   }
 
   if (report.tickets) {
     lines.push('【改进工单】');
+    const ticketStats = report.tickets.stats || {};
     lines.push(`工单总数: ${report.tickets.total || 0}`);
-    if (report.tickets.stats) {
-      const s = report.tickets.stats;
-      lines.push(`待处理: ${s.open || 0}`);
-      lines.push(`处理中: ${s.in_progress || 0}`);
-      lines.push(`已完成: ${s.completed || 0}`);
-      lines.push(`已关闭: ${s.closed || 0}`);
-    }
+    lines.push(`待处理: ${ticketStats.open || 0}`);
+    lines.push(`处理中: ${ticketStats.in_progress || 0}`);
+    lines.push(`已完成: ${ticketStats.completed || 0}`);
+    lines.push(`已关闭: ${ticketStats.closed || 0}`);
+    
     if (report.tickets.list && report.tickets.list.length > 0) {
       lines.push('');
-      lines.push('待处理工单:');
       const pendingTickets = report.tickets.list.filter(t => 
         t.status === 'open' || t.status === 'in_progress'
       );
       if (pendingTickets.length > 0) {
+        lines.push('待处理工单:');
         pendingTickets.forEach((ticket, i) => {
-          lines.push(`  ${i + 1}. [${ticket.status}] ${ticket.title}`);
+          const sourceLabel = ticket.source === 'recording_url' ? '[录音地址分析]' 
+            : ticket.source === 'recording_text' ? '[录音文本分析]' : '';
+          lines.push(`  ${i + 1}. ${sourceLabel}[${ticket.status}] ${ticket.title} (截止: ${ticket.due_date || '无'})`);
         });
       } else {
-        lines.push('  暂无待处理工单');
+        lines.push('所有工单已处理完成');
       }
     }
     lines.push('');

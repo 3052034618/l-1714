@@ -625,12 +625,88 @@ async function generateMonthlyReport(year, month, operatorId, operatorName) {
   };
 }
 
+function getDepartmentDrilldown(year, month, departmentId) {
+  db.initDatabase();
+  const { start, end } = getMonthRange(year, month);
+
+  const department = db.findById('departments', departmentId);
+  if (!department) {
+    throw new Error('部门不存在');
+  }
+
+  const resignations = db.filter('resignation_applications', r =>
+    r.department_id === departmentId && r.created_at >= start && r.created_at <= end
+  );
+
+  const allInterviews = db.findAll('interviews');
+  const allKtTasks = db.findAll('knowledge_transfer_tasks');
+  const allKtAssets = db.findAll('knowledge_assets');
+  const allTickets = db.findAll('improvement_tickets');
+
+  const employees = resignations.map(r => {
+    const employee = db.findById('employees', r.employee_id);
+    const resignationId = r.id;
+
+    const interviews = allInterviews.filter(i => i.resignation_id === resignationId);
+    const completedInterview = interviews.find(i => i.status === 'completed');
+    const interviewStatus = completedInterview ? 'completed'
+      : interviews.find(i => i.status === 'rejected') ? 'rejected'
+      : interviews.length > 0 ? 'scheduled' : 'pending';
+
+    const ktAssets = allKtAssets.filter(a => a.resignation_id === resignationId);
+    const ktAssetIds = ktAssets.map(a => a.id);
+    const ktTasks = allKtTasks.filter(t => ktAssetIds.includes(t.knowledge_asset_id));
+    const ktCompleted = ktTasks.filter(t => t.status === 'completed').length;
+    const ktTotal = ktTasks.length;
+    const ktRate = ktTotal > 0 ? Math.round((ktCompleted / ktTotal) * 100) : 0;
+
+    const tickets = allTickets.filter(t =>
+      t.resignation_id === resignationId ||
+      (t.department_id === departmentId && t.interview_id && interviews.map(i => i.id).includes(t.interview_id))
+    );
+    const openTickets = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+
+    return {
+      resignation_id: resignationId,
+      employee_id: r.employee_id,
+      employee_name: employee ? employee.name : null,
+      position: employee ? employee.position : null,
+      level: employee ? employee.level : null,
+      resignation_date: r.resignation_date,
+      last_working_date: r.last_working_date,
+      reason_category: r.reason_category,
+      status: r.status,
+      interview: {
+        status: interviewStatus,
+        completed_at: completedInterview ? completedInterview.actual_end_at : null,
+        recording_analysis_source: completedInterview ? completedInterview.recording_analysis_source : null
+      },
+      knowledge_transfer: {
+        total: ktTotal,
+        completed: ktCompleted,
+        completion_rate: ktRate
+      },
+      open_tickets: openTickets,
+      total_tickets: tickets.length
+    };
+  });
+
+  return {
+    period: `${year}年${month}月`,
+    department_id: departmentId,
+    department_name: department.name,
+    total_resignations: resignations.length,
+    employees
+  };
+}
+
 module.exports = {
   generateMonthlyStats,
   generateMonthlyRangeStats,
   generateMonthKeys,
   calculateDepartmentMoMComparison,
   calculateDepartmentStatsForMonth,
+  getDepartmentDrilldown,
   generateMonthlyReportPDF,
   generateMonthlyReportExcel,
   generateMonthlyReport

@@ -72,6 +72,153 @@ function getHrDashboard(departmentId = null, filters = {}) {
   };
 }
 
+function getMyTodos(userId) {
+  db.initDatabase();
+
+  const user = db.findById('employees', userId);
+  if (!user) {
+    throw new Error('用户不存在');
+  }
+
+  const filters = {};
+  const scopeInfo = { user_name: user.name, user_role: user.role, scope_description: '' };
+
+  if (user.role === 'hr_director' || user.role === 'hr') {
+    scopeInfo.scope_description = '全部范围（HR角色）';
+    scopeInfo.scope_type = 'all';
+  } else if (user.role === 'manager') {
+    filters.manager_id = userId;
+    scopeInfo.scope_description = `负责部门内员工事项`;
+    scopeInfo.scope_type = 'manager';
+    
+    const managedDepts = db.filter('departments', d => d.manager_id === userId);
+    if (managedDepts.length > 0) {
+      scopeInfo.scope_description = `${managedDepts.map(d => d.name).join('、')} 部门内员工事项`;
+      scopeInfo.managed_departments = managedDepts.map(d => ({ id: d.id, name: d.name }));
+    }
+  } else {
+    const empDept = user.department_id ? db.findById('departments', user.department_id) : null;
+    if (empDept && empDept.hrbp_id) {
+      filters.hrbp_id = empDept.hrbp_id;
+      scopeInfo.scope_description = `${empDept.name} 部门事项（通过HRBP关联）`;
+      scopeInfo.scope_type = 'hrbp_scope';
+    } else {
+      scopeInfo.scope_description = '无管理范围';
+      scopeInfo.scope_type = 'none';
+    }
+  }
+
+  const hrbpDepts = db.filter('departments', d => d.hrbp_id === userId);
+  if (hrbpDepts.length > 0 && !filters.hrbp_id) {
+    filters.hrbp_id = userId;
+    scopeInfo.scope_description = scopeInfo.scope_description 
+      ? `${scopeInfo.scope_description}；HRBP负责：${hrbpDepts.map(d => d.name).join('、')}`
+      : `HRBP负责：${hrbpDepts.map(d => d.name).join('、')}`;
+    scopeInfo.scope_type = scopeInfo.scope_type || 'hrbp';
+    scopeInfo.hrbp_departments = hrbpDepts.map(d => ({ id: d.id, name: d.name }));
+  }
+
+  const pendingResignations = getPendingResignations(null, filters);
+  const pendingInterviews = getPendingInterviews(null, filters);
+  const rejectedInterviews = getRejectedInterviews(null, filters);
+  const overdueKnowledgeTransfers = getOverdueKnowledgeTransfers(null, filters);
+  const pendingTickets = getPendingTickets(null, filters);
+
+  const allItems = [];
+
+  pendingResignations.records.forEach(item => {
+    allItems.push({
+      ...item,
+      item_type: 'pending_resignation',
+      type_name: '待审批离职',
+      employee_name: item.employee_name,
+      department_name: item.department_name,
+      deadline: item.last_working_date,
+      next_action: '审批离职申请',
+      urgency_level: item.days_pending > 5 ? 'overdue' : item.days_pending > 3 ? 'due_soon' : 'normal'
+    });
+  });
+
+  pendingInterviews.records.forEach(item => {
+    allItems.push({
+      ...item,
+      item_type: 'pending_interview',
+      type_name: '待面谈',
+      employee_name: item.employee_name,
+      department_name: item.department_name,
+      deadline: item.scheduled_at,
+      next_action: '安排或跟进面谈',
+      urgency_level: item.days_until_scheduled !== null && item.days_until_scheduled <= 0 ? 'overdue' 
+        : item.days_until_scheduled !== null && item.days_until_scheduled <= 1 ? 'due_today'
+        : item.days_until_scheduled !== null && item.days_until_scheduled <= 3 ? 'due_soon' : 'normal'
+    });
+  });
+
+  rejectedInterviews.records.forEach(item => {
+    allItems.push({
+      ...item,
+      item_type: 'rejected_interview',
+      type_name: '拒绝后待回应',
+      employee_name: item.employee_name,
+      department_name: item.department_name,
+      deadline: null,
+      next_action: item.reminders_until_escalation <= 1 ? '即将升级至HR总监' : `继续催办（还剩${item.reminders_until_escalation}次）`,
+      urgency_level: item.reminders_until_escalation <= 1 ? 'overdue' : 'due_soon'
+    });
+  });
+
+  overdueKnowledgeTransfers.records.forEach(item => {
+    allItems.push({
+      ...item,
+      item_type: 'overdue_knowledge_transfer',
+      type_name: '知识转移超期',
+      employee_name: item.employee_name,
+      department_name: item.department_name,
+      deadline: item.deadline,
+      next_action: '催办知识转移任务',
+      urgency_level: 'overdue'
+    });
+  });
+
+  pendingTickets.records.forEach(item => {
+    allItems.push({
+      ...item,
+      item_type: 'pending_ticket',
+      type_name: '待处理工单',
+      employee_name: item.employee_name,
+      department_name: item.department_name,
+      deadline: item.due_date,
+      next_action: '处理改进工单',
+      urgency_level: item.priority === 'high' ? 'due_soon' 
+        : item.days_until_due !== null && item.days_until_due <= 0 ? 'overdue'
+        : item.days_until_due !== null && item.days_until_due <= 1 ? 'due_today'
+        : item.days_until_due !== null && item.days_until_due <= 3 ? 'due_soon' : 'normal'
+    });
+  });
+
+  const urgencyOrder = { overdue: 0, due_today: 1, due_soon: 2, normal: 3 };
+  allItems.sort((a, b) => {
+    const ua = urgencyOrder[a.urgency_level] ?? 4;
+    const ub = urgencyOrder[b.urgency_level] ?? 4;
+    if (ua !== ub) return ua - ub;
+    return 0;
+  });
+
+  const grouped = {
+    overdue: { name: '已超期', items: allItems.filter(i => i.urgency_level === 'overdue') },
+    due_today: { name: '今日处理', items: allItems.filter(i => i.urgency_level === 'due_today') },
+    due_soon: { name: '三天内处理', items: allItems.filter(i => i.urgency_level === 'due_soon') },
+    normal: { name: '常规', items: allItems.filter(i => i.urgency_level === 'normal') }
+  };
+
+  return {
+    scope: scopeInfo,
+    total: allItems.length,
+    grouped,
+    items: allItems
+  };
+}
+
 function buildPriorityView(data) {
   const allItems = [];
 
@@ -547,5 +694,6 @@ function calculateDaysOverdue(deadlineStr, nowStr) {
 }
 
 module.exports = {
-  getHrDashboard
+  getHrDashboard,
+  getMyTodos
 };

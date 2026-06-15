@@ -38,9 +38,16 @@ function seedData() {
 
   const techManager = employees.find(e => e.name === '王五');
   const productManager = employees.find(e => e.name === '钱七');
+  const hrbpEmployee = employees.find(e => e.name === '孙八');
+  const hrDirector = employees.find(e => e.name === '周九');
+  const marketDept = departments.find(d => d.name === '市场部');
+  const financeDept = departments.find(d => d.name === '财务部');
   
-  db.update('departments', techDept.id, { manager_id: techManager.id });
-  db.update('departments', productDept.id, { manager_id: productManager.id });
+  db.update('departments', techDept.id, { manager_id: techManager.id, hrbp_id: hrbpEmployee.id });
+  db.update('departments', productDept.id, { manager_id: productManager.id, hrbp_id: hrbpEmployee.id });
+  db.update('departments', marketDept.id, { hrbp_id: hrbpEmployee.id });
+  db.update('departments', financeDept.id, { hrbp_id: hrbpEmployee.id });
+  db.update('departments', hrDept.id, { manager_id: hrDirector.id });
 
   const questions = [
     { category: '职业发展', position: null, question: '你认为公司在职业发展方面有哪些可以改进的地方？', sort_order: 1, is_active: 1 },
